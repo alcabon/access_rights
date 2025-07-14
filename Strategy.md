@@ -1,4 +1,56 @@
 
+https://github.com/mshanemc/shane-sfdx-plugins
+
+**sfdx shane:profile:convert -n <string> -p <string> [-d <directory>] [-e | -c] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]**
+
+convert a profile into a permset
+
+**USAGE**
+
+  $ sfdx shane:profile:convert -n <string> -p <string> [-d <directory>] [-e | -c] [--json] [--loglevel
+  trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]
+
+**OPTIONS**
+
+  -c, --skinnyclone                                                                 create a new profile that's the
+                                                                                    original profile less permset (does
+                                                                                    not modify original profile)
+
+  -d, --directory=directory                                                         [default: force-app/main/default]
+                                                                                    Where is all this metadata? defaults
+                                                                                    to force-app/main/default
+
+  -e, --editprofile                                                                 remove metadata from original
+                                                                                    profile
+
+  -n, --name=name                                                                   (required) path to existing permset.
+                                                                                    If it exists, new perms will be
+                                                                                    added to it.  If not, then it'll be
+                                                                                    created for you
+
+  -p, --profile=profile                                                             (required) API name of an profile to
+                                                                                    convert.  If blank, then you mean
+                                                                                    ALL the objects and ALL their fields
+                                                                                    and ALL their tabs
+
+  --json                                                                            format output as json
+
+  --loglevel=(trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL)  [default: warn] logging level for
+                                                                                    this command invocation
+
+**EXAMPLES**
+
+  **sfdx shane:profile:convert -p Admin -n MyNewPermSet -e**
+  
+  // create a permset in force-app/main/default from the Admin profile (profiles/Admin).  If MyNewPermSet doesn't exist,
+  it will be created.  Content is removed from Admin profile (-e)
+
+   **sfdx shane:profile:convert -p Admin -n MyNewPermSet -c**
+  
+  // create a permset in force-app/main/default from the Admin profile (profiles/Admin).  If MyNewPermSet doesn't exist,
+  it will be created.  Leaves the original Admin profile and creates an Admin_Skinny profile that has everything in the
+  permset removed (-c)
+
 ```mermaid
 flowchart TD
     A[🎯 Start Migration] --> B[📋 Audit and Planning]
