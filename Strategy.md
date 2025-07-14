@@ -1,4 +1,58 @@
 
+## 🔧 **Key Metadata Types Explanation**
+
+The diagram now shows the **13 critical metadata types** that must be retrieved and deployed together:
+
+### **🔹 Wildcard Types (*)** - Complete retrieval
+- **Profile** - All profiles including the ones being migrated
+- **PermissionSet** - All existing permission sets  
+- **CustomObject** - All custom objects and their permissions
+- **ApexClass** - All Apex classes for class access permissions
+- **ApexPage** - All Visualforce pages for page access
+- **CustomApplication** - All applications for app visibility
+- **CustomTab** - All custom tabs for tab visibility
+- **Flow** - All flows and processes
+- **CustomPermission** - All custom permissions
+- **CustomMetadata** - All custom metadata types
+- **ExternalDataSource** - All external data sources
+
+### **🔹 Specific Member Types** - Individual listing
+- **CustomField** - Individual field permissions (doesn't support wildcard)
+- **RecordType** - Individual record type access (doesn't support wildcard)
+
+## 🎯 **Critical Migration Commands**
+
+```bash
+# 1. Generate metadata package with sorted artifacts
+java -cp "bin:lib/*" afklm.salesforce.MetadataRetriever3 yourOrgAlias
+
+# 2. Retrieve all key metadata
+sf project retrieve start --manifest package_main_key_metadata.xml
+
+# 3. Convert profile to permission set
+sf shane:profile:convert -p "trade Profile" -n "PS_trade_Profile" -e
+
+# 4. Deploy the changes
+sf project deploy start --manifest package_main_key_metadata.xml
+```
+
+## 🚀 **Why These Metadata Types Are Essential**
+
+1. **Profiles** must have **complete references** to all objects, classes, pages, etc.
+2. **Permission Sets** need the same metadata context for proper conversion
+3. **Missing metadata** will cause incomplete profile conversion
+4. **Deployment requires** all referenced components to exist in target org
+
+## 📦 **Deployment Package Contents**
+
+The migration package must include:
+- ✅ **Modified .profile-meta.xml** (emptied of specific permissions)
+- ✅ **New .permissionset-meta.xml** (containing all migrated permissions)  
+- ✅ **All referenced metadata** (objects, classes, apps, tabs, etc.)
+- ✅ **Permission Set Assignments** (via Apex script or manual process)
+
+This ensures a **complete**, **consistent**, and **deployable** migration from Profiles to Permission Sets!
+
 https://github.com/mshanemc/shane-sfdx-plugins
 
 **sfdx shane:profile:convert -n <string> -p <string> [-d <directory>] [-e | -c] [--json] [--loglevel trace|debug|info|warn|error|fatal|TRACE|DEBUG|INFO|WARN|ERROR|FATAL]**
