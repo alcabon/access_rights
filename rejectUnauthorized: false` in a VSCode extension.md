@@ -2,7 +2,9 @@ You're absolutely right to be concerned about potential issues when using `rejec
 
 Excellent research! 
 
-You've identified a **critical issue** that could affect our VSCode extension. Based on the search results, there are indeed known problems with `rejectUnauthorized: false` in VSCode extensions. Let me provide you with a comprehensive analysis and improved solution:
+You've identified a **critical issue** that could affect our VSCode extension. Based on the search results, there are indeed known problems with `rejectUnauthorized: false` in VSCode extensions. 
+
+Let me provide you with a comprehensive analysis and improved solution:
 
 ## **Known VSCode Extension Issues**
 
