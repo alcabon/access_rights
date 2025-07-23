@@ -1,3 +1,4 @@
+
 # Salesforce Same-Org OAuth 2.0 Configuration Guide
 
 **The complete setup of External Client Apps using OAuth 2.0 Client Credentials flow within the same Salesforce org requires specific configuration across three integrated components: External Client App, External Credential, and Named Credential, with proper LWC integration patterns**. This same-org scenario provides secure server-to-server authentication without user interaction, enabling LWC components to access Salesforce APIs through declarative OAuth configuration with automatic token management.
@@ -270,12 +271,14 @@ The key insight is that **Named Credential resolution success in logs only confi
 
 **Token refresh issues** in Client Credentials flow need careful handling since this flow doesn't support refresh tokens. Instead, implement logic to re-request access tokens when they expire, typically by catching 401/403 errors and initiating new token requests.
 
-## LWC Integration Example
+## LWC Integration Examples
 
-**Apex Controller Pattern:**
+### Example 1: Standard REST API (Account query)
+
+**Apex Controller:**
 ```apex
 @AuraEnabled
-public static String makeAPICall() {
+public static String getAccounts() {
     try {
         HttpRequest req = new HttpRequest();
         req.setEndpoint('callout:Same_Org_API_Access/services/data/v58.0/sobjects/Account');
@@ -287,7 +290,7 @@ public static String makeAPICall() {
         if (res.getStatusCode() == 200) {
             return res.getBody();
         } else {
-            throw new AuraHandledException('API call failed: ' + res.getStatusCode());
+            throw new AuraHandledException('API call failed: ' + res.getStatusCode() + ' - ' + res.getBody());
         }
     } catch (Exception e) {
         throw new AuraHandledException('Error: ' + e.getMessage());
@@ -295,22 +298,193 @@ public static String makeAPICall() {
 }
 ```
 
+### Example 2: Tooling API (InstalledPackageVersion query)
+
+**Apex Controller for Tooling API:**
+```apex
+@AuraEnabled
+public static String getInstalledPackages() {
+    try {
+        HttpRequest req = new HttpRequest();
+        // Note: Tooling API requires /tooling/ in the path
+        req.setEndpoint('callout:Same_Org_API_Access/services/data/v58.0/tooling/query/?q=SELECT+Id,SubscriberPackageVersionId,SubscriberPackage.Name,SubscriberPackage.NamespacePrefix,SubscriberPackageVersion.Name,SubscriberPackageVersion.MajorVersion,SubscriberPackageVersion.MinorVersion,SubscriberPackageVersion.PatchVersion,SubscriberPackageVersion.BuildNumber+FROM+InstalledSubscriberPackage');
+        req.setMethod('GET');
+        
+        Http http = new Http();
+        HttpResponse res = http.send(req);
+        
+        System.debug('Tooling API Response Status: ' + res.getStatusCode());
+        System.debug('Tooling API Response Body: ' + res.getBody());
+        
+        if (res.getStatusCode() == 200) {
+            return res.getBody();
+        } else {
+            throw new AuraHandledException('Tooling API call failed: ' + res.getStatusCode() + ' - ' + res.getBody());
+        }
+    } catch (Exception e) {
+        throw new AuraHandledException('Tooling API Error: ' + e.getMessage());
+    }
+}
+
+@AuraEnabled
+public static String getSpecificPackageVersion(String packageName) {
+    try {
+        HttpRequest req = new HttpRequest();
+        // Query for a specific package by name
+        String query = 'SELECT Id,SubscriberPackageVersionId,SubscriberPackage.Name,SubscriberPackage.NamespacePrefix,SubscriberPackageVersion.Name,SubscriberPackageVersion.MajorVersion,SubscriberPackageVersion.MinorVersion,SubscriberPackageVersion.PatchVersion,SubscriberPackageVersion.BuildNumber FROM InstalledSubscriberPackage WHERE SubscriberPackage.Name = \'' + String.escapeSingleQuotes(packageName) + '\'';
+        String encodedQuery = EncodingUtil.urlEncode(query, 'UTF-8');
+        
+        req.setEndpoint('callout:Same_Org_API_Access/services/data/v58.0/tooling/query/?q=' + encodedQuery);
+        req.setMethod('GET');
+        
+        Http http = new Http();
+        HttpResponse res = http.send(req);
+        
+        if (res.getStatusCode() == 200) {
+            return res.getBody();
+        } else {
+            throw new AuraHandledException('Package query failed: ' + res.getStatusCode() + ' - ' + res.getBody());
+        }
+    } catch (Exception e) {
+        throw new AuraHandledException('Package query error: ' + e.getMessage());
+    }
+}
+```
+
 **LWC Component JavaScript:**
 ```javascript
-import { LightningElement } from 'lwc';
-import makeAPICall from '@salesforce/apex/MyController.makeAPICall';
+import { LightningElement, track } from 'lwc';
+import getAccounts from '@salesforce/apex/MyController.getAccounts';
+import getInstalledPackages from '@salesforce/apex/MyController.getInstalledPackages';
+import getSpecificPackageVersion from '@salesforce/apex/MyController.getSpecificPackageVersion';
 
 export default class MyComponent extends LightningElement {
-    async handleAPICall() {
+    @track accountData;
+    @track packageData;
+    @track specificPackageData;
+    @track isLoading = false;
+
+    async handleAccountCall() {
+        this.isLoading = true;
         try {
-            const result = await makeAPICall();
-            console.log('API Result:', result);
+            const result = await getAccounts();
+            this.accountData = JSON.parse(result);
+            console.log('Account Data:', this.accountData);
         } catch (error) {
-            console.error('Error:', error.body.message);
+            console.error('Account Error:', error.body.message);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    async handlePackageCall() {
+        this.isLoading = true;
+        try {
+            const result = await getInstalledPackages();
+            this.packageData = JSON.parse(result);
+            console.log('Package Data:', this.packageData);
+        } catch (error) {
+            console.error('Package Error:', error.body.message);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    async handleSpecificPackageCall() {
+        this.isLoading = true;
+        try {
+            const result = await getSpecificPackageVersion({ packageName: 'My Package Name' });
+            this.specificPackageData = JSON.parse(result);
+            console.log('Specific Package Data:', this.specificPackageData);
+        } catch (error) {
+            console.error('Specific Package Error:', error.body.message);
+        } finally {
+            this.isLoading = false;
         }
     }
 }
 ```
+
+**LWC Component HTML:**
+```html
+<template>
+    <lightning-card title="API Integration Examples" icon-name="standard:integration">
+        <div class="slds-p-horizontal_medium">
+            <div class="slds-grid slds-wrap slds-gutters">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                    <lightning-button 
+                        label="Get Accounts" 
+                        onclick={handleAccountCall}
+                        disabled={isLoading}
+                        variant="brand">
+                    </lightning-button>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                    <lightning-button 
+                        label="Get Installed Packages" 
+                        onclick={handlePackageCall}
+                        disabled={isLoading}
+                        variant="brand">
+                    </lightning-button>
+                </div>
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                    <lightning-button 
+                        label="Get Specific Package" 
+                        onclick={handleSpecificPackageCall}
+                        disabled={isLoading}
+                        variant="brand">
+                    </lightning-button>
+                </div>
+            </div>
+
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading..."></lightning-spinner>
+            </template>
+
+            <template if:true={accountData}>
+                <div class="slds-m-top_medium">
+                    <h3>Account Data:</h3>
+                    <pre>{accountDataString}</pre>
+                </div>
+            </template>
+
+            <template if:true={packageData}>
+                <div class="slds-m-top_medium">
+                    <h3>Installed Packages:</h3>
+                    <pre>{packageDataString}</pre>
+                </div>
+            </template>
+
+            <template if:true={specificPackageData}>
+                <div class="slds-m-top_medium">
+                    <h3>Specific Package Info:</h3>
+                    <pre>{specificPackageDataString}</pre>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>
+```
+
+### Key Differences for Tooling API:
+
+**1. URL Path Requirements:**
+- **Standard API**: `callout:Named_Cred/services/data/v58.0/sobjects/Account`
+- **Tooling API**: `callout:Named_Cred/services/data/v58.0/tooling/query/?q=...`
+
+**2. Required Permissions for Run As User:**
+- **Standard API**: API Enabled + appropriate object permissions
+- **Tooling API**: API Enabled + **View All Data** + **Author Apex** (for some objects) + **Customize Application** (for others)
+
+**3. Query Structure:**
+- **Standard API**: REST endpoints (`/sobjects/Account/`)
+- **Tooling API**: SOQL queries via `/tooling/query/?q=SELECT...`
+
+**4. Common 404 Causes:**
+- Missing `/tooling/` in the path
+- Using wrong API version
+- Insufficient permissions (returns 404 instead of 403 for some Tooling objects)
+- URL encoding issues in SOQL queries
 
 ## Conclusion
 
